@@ -103,6 +103,7 @@
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.None;
             this.Name = "TrayIconForm";
             this.Text = "Form1";
+            this.FormClosed += new System.Windows.Forms.FormClosedEventHandler(this.TrayIconForm_FormClosed);
             this.VisibleChanged += new System.EventHandler(this.TrayIconForm_VisibleChanged);
             this.trayMenu.ResumeLayout(false);
             this.ResumeLayout(false);

@@ -299,5 +299,9 @@ namespace WindowsLayoutSnapshot {
         [DllImport("user32.dll")]
         private static extern IntPtr GetForegroundWindow();
 
+        private void TrayIconForm_FormClosed(object sender, FormClosedEventArgs e)
+        {
+            // save placements
+        }
     }
 }

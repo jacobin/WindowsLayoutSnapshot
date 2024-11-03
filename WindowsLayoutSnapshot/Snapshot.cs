@@ -10,7 +10,7 @@ namespace WindowsLayoutSnapshot {
 
     internal class Snapshot {
 
-        private Dictionary<IntPtr, WINDOWPLACEMENT> m_placements = new Dictionary<IntPtr, WINDOWPLACEMENT>();
+        private Dictionary<IntPtr, Title2WindowPlacement> m_placements = new Dictionary<IntPtr, Title2WindowPlacement>();
         private List<IntPtr> m_windowsBackToTop = new List<IntPtr>();
 
         private Snapshot(bool userInitiated) {
@@ -41,11 +41,12 @@ namespace WindowsLayoutSnapshot {
             // EnumWindows returns windows in Z order from back to front
             m_windowsBackToTop.Add(hwnd);
 
-            var placement = new WINDOWPLACEMENT();
-            placement.length = Marshal.SizeOf(typeof(WINDOWPLACEMENT));
-            if (!GetWindowPlacement(hwnd, ref placement)) {
+            var placement = new Title2WindowPlacement();
+            placement.winPlacement.length = Marshal.SizeOf(typeof(WINDOWPLACEMENT));
+            if (!GetWindowPlacement(hwnd, ref placement.winPlacement)) {
                 throw new Exception("Error getting window placement");
             }
+            placement.sWinTitle = GetWindowText(hwnd);
             m_placements.Add(hwnd, placement);
 
             return true;
@@ -86,11 +87,11 @@ namespace WindowsLayoutSnapshot {
 
                 // make sure points and rects will be inside monitor
                 IntPtr extendedStyles = GetWindowLongPtr(placement.Key, (-20)); // GWL_EXSTYLE
-                placementValue.ptMaxPosition = GetUpperLeftCornerOfNearestMonitor(extendedStyles, placementValue.ptMaxPosition);
-                placementValue.ptMinPosition = GetUpperLeftCornerOfNearestMonitor(extendedStyles, placementValue.ptMinPosition);
-                placementValue.rcNormalPosition = GetRectInsideNearestMonitor(extendedStyles, placementValue.rcNormalPosition);
+                placementValue.winPlacement.ptMaxPosition = GetUpperLeftCornerOfNearestMonitor(extendedStyles, placementValue.winPlacement.ptMaxPosition);
+                placementValue.winPlacement.ptMinPosition = GetUpperLeftCornerOfNearestMonitor(extendedStyles, placementValue.winPlacement.ptMinPosition);
+                placementValue.winPlacement.rcNormalPosition = GetRectInsideNearestMonitor(extendedStyles, placementValue.winPlacement.rcNormalPosition);
 
-                SetWindowPlacement(placement.Key, ref placementValue);
+                SetWindowPlacement(placement.Key, ref placementValue.winPlacement);
             }
 
             // now update the z-orders
@@ -160,6 +161,20 @@ namespace WindowsLayoutSnapshot {
             return true;
         }
 
+        /// <summary> Get the text for the window pointed to by hWnd </summary>
+        public static string GetWindowText(IntPtr hWnd)
+        {
+            int size = GetWindowTextLength(hWnd);
+            if (size > 0)
+            {
+                var builder = new StringBuilder(size + 1);
+                GetWindowText(hWnd, builder, builder.Capacity);
+                return builder.ToString();
+            }
+
+            return String.Empty;
+        }
+
         [DllImport("user32.dll")]
         private static extern IntPtr BeginDeferWindowPos(int nNumWindows);
 
@@ -222,6 +237,23 @@ namespace WindowsLayoutSnapshot {
         [DllImport("user32.dll", SetLastError = true)]
         [return: MarshalAs(UnmanagedType.Bool)]
         private static extern bool GetWindowPlacement(IntPtr hWnd, ref WINDOWPLACEMENT lpwndpl);
+
+        // https://stackoverflow.com/questions/19867402/how-can-i-use-enumwindows-to-find-windows-with-a-specific-caption-title
+        [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+        private static extern int GetWindowText(IntPtr hWnd, StringBuilder strText, int maxCount);
+
+        [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+        private static extern int GetWindowTextLength(IntPtr hWnd);
+
+        private class Title2WindowPlacement
+        {
+            public string sWinTitle;
+            public WINDOWPLACEMENT winPlacement;
+            public Title2WindowPlacement()
+            {
+                winPlacement = new WINDOWPLACEMENT();
+            }
+        }
 
         [StructLayout(LayoutKind.Sequential)]
         private struct WINDOWPLACEMENT {
